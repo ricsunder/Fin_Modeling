@@ -19,7 +19,95 @@ library(dygraphs)
 library(timetk)
 library(knitr)
 library(kableExtra)
+library(tibbletime)
 
 
 ```
+
+Calculating the mean, variance and the standard deviation(monthly and yearly time period)
+
+```{r mean and std monthly, warning=FALSE, message=FALSE}
+
+tickers <- c("AAPL", "GOOG")
+price_data <- tq_get(tickers,
+                     from = '2007-06-01',
+                     to = "2012-06-01",
+                     get = "stock.prices")
+
+monthly_mean <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  summarise(monthly_mean = mean(returns))
+  
+  
+monthly_variance <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  summarise(monthly_variance = var(returns))
+
+monthly_sd <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  summarise(monthly_sd = sd(returns))  
+
+yearly_mean <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "yearly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'yearly',
+               col_rename = "returns") %>%
+  summarise(yearly_mean = mean(returns))
+  
+  
+yearly_variance <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "yearly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'yearly',
+               col_rename = "returns") %>%
+  summarise(yearly_variance = var(returns))
+
+yearly_sd <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "yearly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'yearly',
+               col_rename = "returns") %>%
+  summarise(yearly_sd = sd(returns))
+
+left_join(yearly_mean, yearly_sd, by = 'symbol') %>%
+  left_join(yearly_variance) %>%
+  left_join(monthly_mean) %>%
+  left_join(monthly_sd) %>%
+  left_join(monthly_variance)
+
+```
+
 
