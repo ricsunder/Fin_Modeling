@@ -1,0 +1,377 @@
+---
+title: "Chapter 1"
+output: html_document
+date: "2018-01-01"
+---
+
+###Financial Modeling 
+
+#### Chapter 1
+
+Calculating the present value of with equal payments
+
+```{r pv equal pv, warning=FALSE,message=FALSE}
+library(FinCal)
+library(tidyquant)
+library(jrvFinance)
+library(ggthemes)
+library(dygraphs)
+library(timetk)
+library(knitr)
+library(kableExtra)
+
+
+r <- 0.1
+cf <- tribble(~Year,~cf,
+              1,100,
+              2,100,
+              3,100,
+              4,100,
+              5,100)
+cf %>%
+  mutate(pv = cf/(1+r)^Year) %>%
+  .[[3]] %>%
+  sum()
+
+
+```
+
+Calculating the present value of uneven payments.
+
+```{r pv unequal pv, warning=FALSE,message=FALSE}
+
+cf <- tribble(~Year,~cf,
+              1,100,
+              2,200,
+              3,300,
+              4,400,
+              5,500)
+cf %>%
+  mutate(pv = cf/(1+r)^Year) %>%
+  .[[3]] %>%
+  sum()
+
+```
+
+Calculating the PV with negative cash flow
+
+```{r pv neg cf, warning=FALSE,message=FALSE}
+
+cf <- tribble(~Year,~cf,
+              0,-250,
+              1,100,
+              2,100,
+              3,100,
+              4,100,
+              5,100)
+              
+cf %>%
+  mutate(pv = cf/(1+r)^Year) %>%
+  .[[3]] %>%
+  sum()
+
+
+```
+
+Calculating the present value of a finite annuity
+
+```{r finite annuity, warning=FALSE,message=FALSE}
+
+pmt <- 1000
+n <- 5
+r <- 0.12
+
+cf <- tibble(period = 1:5,
+             pmt = pmt)
+
+cf %>%
+  mutate(pv = pmt/(1+r)^period) %>%
+  .[[3]] %>%
+  sum()
+
+```
+
+Calculating the present value infinite annuity
+
+```{r infinite annuity, warning=FALSE,message=FALSE}
+
+pmt <- 1000
+r <- 0.12
+
+annuity <- pmt/r
+annuity
+
+```
+
+Calculating present value of finite growing annuity
+
+```{r grow annuity,warning=FALSE,message=FALSE}
+
+payment <- 1000
+growth <- 0.06
+n <- 5
+rate <- 0.12
+
+cf <- tibble(period = 1:5,
+             pmt = 1000)
+
+cf %>%
+  mutate(pmt = payment*(1+growth)^(period - 1)) %>%
+  mutate(pv = pmt/(1+rate)^period)
+
+cf %>%
+  mutate(pmt = payment*(1+growth)^(period - 1)) %>%
+  mutate(pv = pmt/(1+rate)^period) %>%
+  .[[3]] %>%
+  sum()
+
+```
+
+Calculating present value of infinite growing annuity
+
+```{r grow infinite annuity,warning=FALSE,message=FALSE}
+
+payment <- 1000
+growth <- 0.06
+rate <- 0.12
+
+annuity <- payment/(rate - growth)
+annuity
+
+```
+
+Calculating the Internal rate of return
+
+```{r IRR, warning=FALSE,message=FALSE}
+
+cf <- tibble(Year = 0:5,
+             cf = c(-800,200,250,300,350,400))
+
+#using the IRR formula from the jrvFinance library
+
+irr(cf$cf)
+
+```
+  
+Calculating the loan payments
+
+```{r loan pmt, warning=FALSE,message=FALSE}
+
+car_loan <- 10000
+interest <- 0.07
+years <- 6
+
+car_payments <- pmt(pv = -car_loan,r = interest, n = years, fv = 0)
+car_payments
+
+```
+
+```{r loan pmt schedule, warning=FALSE,message=FALSE}
+
+car_loan <- 10000
+interest <- 0.07
+years <- 6
+car_payments <- pmt(pv = -car_loan,r = interest, n = years, fv = 0)
+
+loan_table <- matrix(ncol = 6, nrow = 6)
+loan_table[1,1] <- 1
+loan_table[1,2] <- car_loan
+loan_table[1,3] <- car_payments
+loan_table[1,4] <- car_loan * interest
+loan_table[1,5] <- car_payments - (car_loan * interest)
+loan_table[1,6] <- car_loan - (car_payments - (car_loan * interest))
+
+for(i in 1:5) {
+  
+  loan_table[c(i+1),1] <- i + 1
+  loan_table[c(i+1),2] <- loan_table[i, 6]
+  loan_table[c(i+1),3] <- car_payments
+  loan_table[c(i+1),4] <- loan_table[c(i+1),2] * interest
+  loan_table[c(i+1),5] <- car_payments - (loan_table[c(i+1),2] * interest)
+  loan_table[c(i+1),6] <- loan_table[c(i+1),2] - (car_payments - (loan_table[c(i+1),2] * interest))
+  
+}
+
+loan_table <- tk_tbl(as.data.frame(loan_table))
+colnames(loan_table) <- paste(c("Year", 'Initial_Balance', "Payments", "Interest",
+                                "Principal", "Ending_Balance"))
+
+loan_table <- loan_table %>%
+  mutate(Ending_Balance = round(Ending_Balance,3))
+
+loan_table
+```
+
+Calculating the Future value of deposit in an account
+
+```{r fv value, warning=FALSE,message=FALSE}
+
+#Simple future value
+
+interest <- 0.1
+deposit <- 1000
+
+fv_table <- tibble(Year = 1:10,
+                   beg_val = 0,
+                   int = 0,
+                   end_val = 0)
+
+fv_table <- fv_table %>%
+  mutate(beg_val = if_else(Year == 1, deposit,beg_val)) %>%
+  mutate(int = if_else(Year == 1, beg_val * interest, int)) %>%
+  mutate(end_val = if_else(Year == 1, beg_val + int, end_val))
+
+for(i in 2:10) {
+  
+  fv_table[i,1] <- i
+  fv_table[i,2] <- fv_table[c(i-1),4]
+  fv_table[i,3] <- fv_table[i,2] * interest
+  fv_table[i,4] <- fv_table[i,2] + fv_table[i,3]
+  
+}
+
+fv_table
+  
+
+```
+
+Calculating the future value of regular annual deposits
+
+```{r reg deposit, warning=FALSE,message=FALSE}
+
+interest <- 0.1
+annual_deposit <- 1000
+n = 10  
+
+fv_table <- tibble(Year = 1:10,
+                   beg_value = 0,
+                   deposit = 0,
+                   int = 0,
+                   end_value = 0)
+
+fv_table[1,2] <- 0
+fv_table[1,3] <- annual_deposit
+fv_table[1,4] <- annual_deposit * interest
+fv_table[1,5] <- fv_table[1,3] + fv_table[1,4]
+
+
+for(i in 2:10) {
+  
+  fv_table[i,2] <- fv_table[c(i-1),5]
+  fv_table[i,3] <- annual_deposit
+  fv_table[i,4] <- (fv_table[i,2] + annual_deposit) * interest
+  fv_table[i,5] <- fv_table[i,2] + fv_table[i,3] + fv_table[i,4]
+  
+}
+
+fv_table
+
+```
+
+* Retirement problem
+
+Suppose the current age is 55 years and intention to retire is 60 (5 years to retirement). After retirement, plan is to withdraw $30,000 for the next 8 years. Expected returns on investments is 8%. How much should be deposited each year?
+
+```{r retirement, warning=FALSE,message=FALSE}
+
+# Divide the problem into two parts 
+#Part 1 Age 55 to 60
+#Part 2 Age 60 to 68
+
+interest <- 0.08
+n1 = 5 #part 1
+n2 = 8 #part 2
+pmt_in_retirement <- 30000
+
+#first calculate amount required to support withdrawing $30000/year during retirement
+
+retirment_amount <- pv(pmt = 30000, r = interest, n = n2, fv = 0, type = 1) #type = 1, withdrawing at the beginning period
+retirment_amount
+
+#Calculating the payments required to reach $186191 in retirement
+
+payment <- pmt(pv = 0, fv = retirment_amount, r = interest, n = n1, type = 1)
+
+payment
+
+cat("We need", sprintf("$%.f", payment), "in savings each year to withdraw $30000 in retirement")
+```
+
+Calculating interest rates at different compounding periods
+
+```{r comp rates, warning=FALSE,message=FALSE}
+
+interest <- 0.05
+initial_dep <- 1000
+c_period <- 2 # compounding periods
+c_int <- interest/c_period #Interest for compounding period
+aft_one_year <- initial_dep * (1 + c_int)^c_period
+aft_one_year
+
+cont_comp <- 1000 * exp(interest)
+cont_comp
+
+#Compounding for different time period table
+
+cmp_tbl <- tibble(period = c(1,2,10,20,50,100,150,300,800),
+                  end_val = 0)
+
+cmp_tbl %>%
+  mutate(end_val = initial_dep * (1 + interest/period)^period)
+
+cmp_tbl %>%
+  mutate(end_val = initial_dep * (1 + interest/period)^period) %>%
+  ggplot(aes(x = period, y = end_val)) +
+  geom_line()
+    
+
+```
+
+Continuous discounting
+
+```{r continuous disc, warning=FALSE,message=FALSE}
+
+
+
+interest <- 0.08
+
+cont_tbl <- tibble(Year = 1:5,
+                   cash_flow = seq(100,500,100))
+
+cont_tbl %>%
+  mutate(pv = cash_flow * exp(-interest * Year))
+  
+  
+  
+```
+
+Calculating Returns from price data
+
+```{r calc returns, warning=FALSE,message=FALSE}
+
+init_dep <- 1000
+end_val <- 1200
+cmp_period <- 2
+
+#Continuous return
+log(end_val/init_dep)
+
+# Implied annual return
+((end_val/init_dep)^(1/cmp_period) - 1) * cmp_period
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

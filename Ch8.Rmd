@@ -1,0 +1,25 @@
+---
+title: "Chapter 8"
+output: html_document
+date: "2018-01-01"
+---
+
+### Financial Modeling
+#### Portfolio Modeling
+
+
+
+```{r lib, warning=FALSE,message=FALSE}
+
+library(FinCal)
+library(tidyquant)
+library(jrvFinance)
+library(ggthemes)
+library(dygraphs)
+library(timetk)
+library(knitr)
+library(kableExtra)
+
+
+```
+
