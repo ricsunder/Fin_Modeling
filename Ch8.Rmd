@@ -28,7 +28,7 @@ Calculating the mean, variance and the standard deviation(monthly and yearly tim
 
 ```{r mean and std monthly, warning=FALSE, message=FALSE}
 
-tickers <- c("AAPL", "GOOG")
+tickers <- c("AAPL", "AMZN")
 price_data <- tq_get(tickers,
                      from = '2007-06-01',
                      to = "2012-06-01",
@@ -102,11 +102,97 @@ yearly_sd <- price_data %>%
                col_rename = "returns") %>%
   summarise(yearly_sd = sd(returns))
 
-left_join(yearly_mean, yearly_sd, by = 'symbol') %>%
+stat_table <- left_join(yearly_mean, yearly_sd, by = 'symbol') %>%
   left_join(yearly_variance) %>%
   left_join(monthly_mean) %>%
   left_join(monthly_sd) %>%
   left_join(monthly_variance)
+
+kable(stat_table, digits = 3, caption = "AAPL & AMZN stock stats from June 2007 to June 2012") %>%
+  kable_styling(bootstrap_options = "hover", full_width = FALSE)
+
+```
+
+Computing the Covariance and Correlation
+
+```{r cov corr, message=FALSE, warning=FALSE}
+
+#covert monthly returns to xts object
+
+returns_xts <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  spread(symbol, value = returns) %>%
+  tk_xts()
+
+#Finding the Covariance
+
+aapl_AMZN_cov <- cov(returns_xts$AAPL, returns_xts$AMZN)
+
+#Finding the Correlation
+
+aapl_AMZN_corr <- cor(returns_xts$AAPL, returns_xts$AMZN)
+
+cat("AAPL and AMZN covariance was", aapl_AMZN_cov, " from June 2007 to June 2012")
+cat("AAPL and AMZN correlation was", aapl_AMZN_corr, " from June 2007 to June 2012")
+```
+
+We can also plot the monthly returns for Apple and Amazon
+
+```{r plot, message=FALSE, warning=FALSE}
+
+price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  spread(symbol, value = returns) %>%
+  ggplot(aes(x = AAPL, y = AMZN)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  ggtitle("Monthly Returns relationship between AAPL and AMZN \nfrom June 2007 to June 2012")
+
+```
+
+
+Calculating Portfolio Mean and Standard Deviation
+
+Weight 50% Apple and 50% Amazon
+
+```{r port mean sd, message=FALSE, warning=FALSE}
+w <- c("AAPL" = 0.5, "AMZN" = 0.5)
+
+port_returns <- price_data %>%
+  group_by(symbol) %>%
+  as_tbl_time(date) %>%
+  as_period(period = "monthly", side = 'end') %>%
+  select(symbol, date, adjusted) %>%
+  tq_transmute(select = adjusted,
+               mutate_fun = periodReturn,
+               period = 'monthly',
+               col_rename = "returns") %>%
+  tq_portfolio(assets_col = symbol,
+               returns_col = returns,
+               weights = w, 
+               col_rename = 'port_returns')
+  
+
+mean_port_returns <- mean(port_returns$port_returns)
+sd_port_returns <-  sd(port_returns$port_returns)
+var_port_returns <- var(port_returns$port_returns)
+
+mean_port_returns
+sd_port_returns
 
 ```
 
